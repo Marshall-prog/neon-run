@@ -1,0 +1,26 @@
+NEON RUN — background music credits
+===================================
+
+All 10 background tracks are Creative Commons Zero (CC0 / public domain) and may
+be used in personal and commercial projects without attribution. Credit is given
+here anyway, because the artists deserve it.
+
+Source corpus: github.com/SoundSafari/CC0-1.0-Music (a mirror of CC0 music from
+chosic.com, freepd.com and other public-domain sources).
+
+Every track is instrumental (no vocals). Each one was trimmed to a seamless
+~90 s loop, loudness-matched to the same RMS and re-encoded to a compact Opus
+file (~32 kbps, 48 kHz stereo) specifically for this game.
+
+Level 1  Неоновый горизонт    lvl01.opus   Komiku — "Action Introduction" (The Binge Watchers : Score 1)
+Level 2  Закатный город       lvl02.opus   Bryan Teoh — "Downtown Boogie" (FreePD Music)
+Level 3  Лунные горы          lvl03.opus   Komiku — "Surfing" (Poupi's incredible adventures !)
+Level 4  Синтвейв             lvl04.opus   Komiku — "Action Techno" (The Binge Watchers : Score 1)
+Level 5  Неоновый лес         lvl05.opus   Komiku — "The Road We Used To Travel When We Were Kids" (Tale on the Late)
+Level 6  Ледяной каньон       lvl06.opus   RandomMind — "[Chiptune] Medieval: Minstrel Dance"
+Level 7  Вулкан               lvl07.opus   Komiku — "Battle Theme" (It's time for adventure ! vol 2)
+Level 8  Неоновая пустыня     lvl08.opus   Kevin MacLeod — "Funshine" (Free PD)
+Level 9  Подземелье           lvl09.opus   Komiku — "Introduction To Your Adventure" (ULTRA PERSON VOL1)
+Level 10 Цифровое ядро        lvl10.opus   Komiku — "Action Decisive Move" (The Binge Watchers : Score 1)
+
+Licence: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/

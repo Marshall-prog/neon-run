@@ -1,0 +1,16 @@
+# local/editor
+.DS_Store
+Thumbs.db
+*.log
+
+# never publish secrets or build artifacts
+.env
+.env.*
+*.key
+*.pem
+dist/
+shots/
+android/
+tools/
+assets/kenney_*/
+assets/*.zip
