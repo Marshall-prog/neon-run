@@ -120,6 +120,8 @@ const store = {
 };
 
 // ---------- audio (synth) ----------
+function vibrate(ms){ try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){} }
+
 const Sound = {
   ctx: null, muted: store.get("muted", false),
   unlock() {
@@ -562,6 +564,7 @@ let lastMedalShown = store.get("medals", 0);   // bitmask of earned medals
 let shake = 0, hitStop = 0, flash = 0;
 let duckLatch = 0;   // top-tap latches duck for a moment (mobile comfort)
 let pendingJumpT = null;   // touch: wait 90ms to tell "tap/swipe-up" from "swipe-down"
+let slideT = 0;        // slide (undercut) timer on ground
 let bgT = 0;
 let hintT = 0;                                   // control hint timer on first runs
 let firstRun = store.get("firstRun", true);
@@ -595,7 +598,22 @@ const RIDGE_PITCH = 46;
 const ridgesFar = makeRidges(1234, 170, GY - 40, 32);
 const ridgesNear = makeRidges(777, 110, GY, 32);
 
-function palette() { return PALETTES[levelIdx()]; }
+function lerpColor(a,b,t){
+  t = Math.max(0,Math.min(1,t));
+  const ca = parseInt(a.slice(1),16), cb = parseInt(b.slice(1),16);
+  const ar=(ca>>16)&255,ag=(ca>>8)&255,ab=ca&255;
+  const br=(cb>>16)&255,bg=(cb>>8)&255,bb=cb&255;
+  const rr=Math.round(ar+(br-ar)*t), rg=Math.round(ag+(bg-ag)*t), rb=Math.round(ab+(bb-ab)*t);
+  return "#"+((1<<24)+(rr<<16)+(rg<<8)+rb).toString(16).slice(1);
+}
+function palette(){
+  const i = levelIdx(), j = Math.min(DIFF_MAX, i+1);
+  const p1 = PALETTES[i], p2 = PALETTES[j];
+  const m = (dist / PX_PER_M) % DIFF_LEN;
+  const t = Math.min(1, m / DIFF_LEN);
+  if (t <= 0) return p1;
+  return { neon: lerpColor(p1.neon,p2.neon,t), dim: lerpColor(p1.dim,p2.dim,t), glow: lerpColor(p1.glow,p2.glow,t) };
+}
 
 // ---------- палитра препятствий ----------
 // Фон и декор уровня рисуются неоном уровня, и препятствие в том же цвете
@@ -618,7 +636,14 @@ const HAZARD = [
   { neon: "#e0fff9", glow: "#14e0c0" },   // 9 подземелье: красный -> аква
   { neon: "#fbf7ff", glow: "#8a4dff" },   // 10 ядро: лайм -> фиолет
 ];
-function hazardPalette() { return HAZARD[levelIdx()] || HAZARD[0]; }
+function hazardPalette(){
+  const i = levelIdx(), j = Math.min(DIFF_MAX, i+1);
+  const h1 = HAZARD[i] || HAZARD[0], h2 = HAZARD[j] || HAZARD[0];
+  const m = (dist / PX_PER_M) % DIFF_LEN;
+  const t = Math.min(1, m / DIFF_LEN);
+  if (t <= 0) return h1;
+  return { neon: lerpColor(h1.neon,h2.neon,t), glow: lerpColor(h1.glow,h2.glow,t) };
+}
 
 // ---------- procedural background props ----------
 function makeBuildings(seed, count, minW, maxW, minH, maxH, span) {
@@ -705,7 +730,7 @@ function reset() {
   obstacles = []; coinsArr = []; particles = []; floaties = [];
   dist = 0; speed = SPEED0; coins = 0; spawnAt = 700; nextIsPair = false;
   deadAt = 0; playT = 0; newRecord = false; recordFlash = 0; shake = 0; hitStop = 0; flash = 0;
-  duckLatch = 0; pendingJumpT = null;
+  duckLatch = 0; pendingJumpT = null; slideT = 0;
   startPending = false; startWaitT = 0;
   shownLevel = 0; levelBannerT = 0; levelBannerTxt = "";
   mood = "normal"; moodT = 0;
@@ -721,9 +746,15 @@ const Board = {
     const entry = { m: meters, c: coins, lv: level + 1, d: Date.now() };
     const list = this.load();
     list.push(entry);
-    list.sort((a, b) => b.m - a.m || b.c - a.c);
+    list.sort((a, b) => (b.m - a.m) || (b.c - a.c) || (a.d - b.d));
     const top = list.slice(0, 5);
-    const rank = top.indexOf(entry) + 1;
+    let rank = 0;
+    for (let i = 0; i < top.length; i++) {
+      if (top[i] === entry || (top[i].d === entry.d && top[i].m === entry.m && top[i].c === entry.c)) {
+        rank = i + 1;
+        break;
+      }
+    }
     this.save(top);
     return rank;
   },
@@ -830,17 +861,27 @@ function tryJump() {
 function doJump() {
   if (player.onGround || player.coyote > 0) {
     player.vy = JUMP_V; player.onGround = false; player.coyote = 0; player.jumps = 1;
-    player.ducking = false; Sound.jump(); spawnPuff(player.x, GY, 6);
+    player.ducking = false; slideT = 0; Sound.jump(); spawnPuff(player.x, GY, 6);
   } else if (player.jumps < 2) {
-    player.vy = DJUMP_V; player.jumps = 2; Sound.djump(); spawnPuff(player.x, player.y, 8);
+    player.vy = DJUMP_V; player.jumps = 2; player.ducking = false; slideT = 0;
+    Sound.djump();
+    try { if (navigator.vibrate) navigator.vibrate([10, 20, 10]); } catch(e){}
+    spawnPuff(player.x, player.y, 8);
   }
 }
 
 function setDuck(on) {
   if (state !== ST.PLAY || player.dead) return;
-  if (on && !player.ducking) Sound.duck();
+  if (on && !player.ducking) {
+    Sound.duck();
+    if (player.onGround) {
+      slideT = 0.68;
+      try { if (navigator.vibrate) navigator.vibrate(12); } catch(e){}
+    } else {
+      player.vy += 420;  // air duck = fast fall
+    }
+  }
   player.ducking = on;
-  if (on && !player.onGround) player.vy += 420;  // air duck = fast fall
 }
 
 // touch / mouse
@@ -865,8 +906,7 @@ canvas.addEventListener("pointerdown", (e) => {
   if (state === ST.PLAY && p.x > W - 70 && p.y < 80) { openMenu(); return; }
   if (state === ST.PLAY) {
     pointerStartY = p.y; pointerDucked = false;
-    if (p.y < H * 0.42) { setDuck(true); pointerDucked = true; duckLatch = 0.55; }
-    else pendingJumpT = performance.now();   // deferred: jump only if not a swipe-down
+    pendingJumpT = performance.now();   // deferred: jump only if not a swipe-down/up
   } else {
     tryJump();
   }
@@ -883,24 +923,24 @@ canvas.addEventListener("pointermove", (e) => {
   if (pointerStartY === null) return;
   const p = logicalXY(e);
   const dy = p.y - pointerStartY;
-  if (pendingJumpT !== null && dy > 12) {
-    // gesture is a swipe-down: cancel the pending jump, duck instead
+  if (pendingJumpT !== null && dy > 16) {
+    // gesture is a swipe-down: cancel the pending jump, slide/duck instead
     pendingJumpT = null;
     setDuck(true); pointerDucked = true;
+    try { if (navigator.vibrate) navigator.vibrate(14); } catch(ex){}
     return;
   }
-  if (pendingJumpT !== null && dy < -12) {
+  if (pendingJumpT !== null && dy < -16) {
     // swipe-up = jump right now (feels instant)
     pendingJumpT = null; tryJump();
     return;
   }
-  if (!pointerDucked && dy > 28) { setDuck(true); pointerDucked = true; }
 });
 
 function pointerUp() {
   anyPointerDown = false; pointerStartY = null; pointerDucked = false;
   if (pendingJumpT !== null) { pendingJumpT = null; tryJump(); }   // plain tap = jump
-  if (duckLatch <= 0) setDuck(false);   // keep ducking through the latch window
+  // slide has its own fixed timer, don't interfere
 }
 canvas.addEventListener("pointerup", pointerUp);
 canvas.addEventListener("pointercancel", pointerUp);
@@ -965,6 +1005,7 @@ function die() {
   player.dead = true; player.deadT = 0; state = ST.DEAD; deadAt = 0;
   mood = "sad"; moodT = 0;                 // character looks dejected
   Sound.hit(); shake = 14; hitStop = 0.09; flash = 0.5;
+  try { if (navigator.vibrate) navigator.vibrate([40, 30, 60]); } catch(e){}
   spawnBurst(player.x, player.y - 30, 26);
   Music.stop();
   const m = Math.floor(dist / PX_PER_M);
@@ -1654,6 +1695,12 @@ function update(dt) {
   if (duckLatch > 0) {
     duckLatch -= dt;
     if (duckLatch <= 0 && !anyPointerDown) setDuck(false);
+  }
+  if (slideT > 0) {
+    slideT -= dt;
+    if (slideT <= 0 && player.onGround) {
+      player.ducking = false;
+    }
   }
 
   playT += dt;
@@ -3030,7 +3077,7 @@ function drawMenu(pal) {
   text("рекорд", W / 2 + 54, 214, 18, "rgba(255,255,255,0.55)");
   text(best + " м", W / 2 + 54, 250, 30, "#ffd21e", "center", true);
   drawButtons(pal);
-  text("тап/↑/пробел — прыжок   •   ↓/свайп вниз — присед", W / 2, H - 20, 13, "rgba(255,255,255,0.45)");
+  text("тап/↑/пробел — прыжок   •   свайп вниз — подкат/скольжение", W / 2, H - 20, 13, "rgba(255,255,255,0.45)");
 }
 
 function drawBoardPage(pal) {
@@ -3066,7 +3113,7 @@ function drawHowToPage(pal) {
   const lines = [
     ["Прыжок", "тап или свайп вверх"],
     ["Двойной прыжок", "тап в воздухе"],
-    ["Присед", "свайп вниз"],
+    ["Подкат/скольжение", "свайп вниз по земле"],
     ["Монетка", "+1 очко"],
     ["Алмаз", "+10 очков"],
     ["Уровень", "2000 м, всего 10"],
