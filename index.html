@@ -864,11 +864,12 @@ function doJump() {
     player.ducking = false; slideT = 0; Sound.jump(); spawnPuff(player.x, GY, 6);
   } else if (player.jumps < 2) {
     player.vy = DJUMP_V; player.jumps = 2; player.ducking = false; slideT = 0;
-    Sound.djump();
-    try { if (navigator.vibrate) navigator.vibrate([10, 20, 10]); } catch(e){}
-    spawnPuff(player.x, player.y, 8);
+    Sound.djump(); spawnPuff(player.x, player.y, 8);
   }
 }
+
+// vibration on double jump (called from user gesture handlers)
+function vibrateDoubleJump() { try { if (navigator.vibrate) navigator.vibrate([10, 20, 10]); } catch(e){} }
 
 function setDuck(on) {
   if (state !== ST.PLAY || player.dead) return;
@@ -877,11 +878,14 @@ function setDuck(on) {
     if (player.onGround) {
       slideT = 0.68;
       try { if (navigator.vibrate) navigator.vibrate(12); } catch(e){}
+      player.ducking = true;
     } else {
-      player.vy += 420;  // air duck = fast fall
+      // air duck = fast fall only, no slide state
+      player.vy += 420;
     }
+  } else if (!on) {
+    player.ducking = false;
   }
-  player.ducking = on;
 }
 
 // touch / mouse
@@ -932,14 +936,18 @@ canvas.addEventListener("pointermove", (e) => {
   }
   if (pendingJumpT !== null && dy < -16) {
     // swipe-up = jump right now (feels instant)
-    pendingJumpT = null; tryJump();
+    pendingJumpT = null; tryJump(); vibrateDoubleJump();
     return;
   }
 });
 
 function pointerUp() {
   anyPointerDown = false; pointerStartY = null; pointerDucked = false;
-  if (pendingJumpT !== null) { pendingJumpT = null; tryJump(); }   // plain tap = jump
+  if (pendingJumpT !== null) {
+    const wasInAir = !player.onGround && player.coyote <= 0 && player.jumps > 0;
+    pendingJumpT = null; tryJump();
+    if (wasInAir && player.jumps === 2) vibrateDoubleJump();
+  }
   // slide has its own fixed timer, don't interfere
 }
 canvas.addEventListener("pointerup", pointerUp);
