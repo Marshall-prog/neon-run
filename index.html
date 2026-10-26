@@ -570,6 +570,9 @@ let hintT = 0;                                   // control hint timer on first 
 let firstRun = store.get("firstRun", true);
 let boardRank = 0;                               // leaderboard rank of the last run
 let menuPage = "main";                            // main | board | howto
+// camera inertia
+let camX = 0, camY = 0, camTX = 0, camTY = 0;
+let lastOnGround = true;
 // Brief "ready" gate between tapping Play and the run starting. It lets the
 // level's music decode (or fail over to the synth) first, so the soundtrack
 // begins together with the level instead of ~0.3 s late — and the decode hitch
@@ -734,6 +737,7 @@ function reset() {
   startPending = false; startWaitT = 0;
   shownLevel = 0; levelBannerT = 0; levelBannerTxt = "";
   mood = "normal"; moodT = 0;
+  camX = 0; camY = 0; camTX = 0; camTY = 0; lastOnGround = true;
 }
 
 // ---------- leaderboard (local top-5, ready for an online backend later) ----------
@@ -864,11 +868,12 @@ function doJump() {
     player.ducking = false; slideT = 0; Sound.jump(); spawnPuff(player.x, GY, 6);
   } else if (player.jumps < 2) {
     player.vy = DJUMP_V; player.jumps = 2; player.ducking = false; slideT = 0;
-    Sound.djump();
-    try { if (navigator.vibrate) navigator.vibrate([10, 20, 10]); } catch(e){}
-    spawnPuff(player.x, player.y, 8);
+    Sound.djump(); spawnPuff(player.x, player.y, 8);
   }
 }
+
+// vibration on double jump (called from user gesture handlers)
+function vibrateDoubleJump() { try { if (navigator.vibrate) navigator.vibrate([10, 20, 10]); } catch(e){} }
 
 function setDuck(on) {
   if (state !== ST.PLAY || player.dead) return;
@@ -877,11 +882,14 @@ function setDuck(on) {
     if (player.onGround) {
       slideT = 0.68;
       try { if (navigator.vibrate) navigator.vibrate(12); } catch(e){}
+      player.ducking = true;
     } else {
-      player.vy += 420;  // air duck = fast fall
+      // air duck = fast fall only, no slide state
+      player.vy += 420;
     }
+  } else if (!on) {
+    player.ducking = false;
   }
-  player.ducking = on;
 }
 
 // touch / mouse
@@ -932,14 +940,18 @@ canvas.addEventListener("pointermove", (e) => {
   }
   if (pendingJumpT !== null && dy < -16) {
     // swipe-up = jump right now (feels instant)
-    pendingJumpT = null; tryJump();
+    pendingJumpT = null; tryJump(); vibrateDoubleJump();
     return;
   }
 });
 
 function pointerUp() {
   anyPointerDown = false; pointerStartY = null; pointerDucked = false;
-  if (pendingJumpT !== null) { pendingJumpT = null; tryJump(); }   // plain tap = jump
+  if (pendingJumpT !== null) {
+    const wasInAir = !player.onGround && player.coyote <= 0 && player.jumps > 0;
+    pendingJumpT = null; tryJump();
+    if (wasInAir && player.jumps === 2) vibrateDoubleJump();
+  }
   // slide has its own fixed timer, don't interfere
 }
 canvas.addEventListener("pointerup", pointerUp);
@@ -2669,6 +2681,23 @@ function drawPlayer(pal) {
   const airDuck = p.ducking && !p.onGround && !p.dead;
   const running = !p.dead && p.onGround && !duck;
 
+  // camera inertia
+  const vyN = p.vy / 900;
+  if (p.onGround && !lastOnGround && !p.dead) {
+    camTY += 14;
+    // landing dust
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI * 0.4) + (Math.random() - 0.5) * 0.6;
+      const v = 40 + Math.random() * 60;
+      particles.push({ x: p.x + (Math.random() - 0.5) * 18, y: GY, vx: Math.cos(a) * v - speed * 0.1, vy: Math.sin(a) * -v * 0.6, life: 0.25 + Math.random() * 0.2, max: 0.35, size: 2 + Math.random() * 2, col: pal.neon });
+    }
+  }
+  lastOnGround = p.onGround;
+  camTX = Math.max(-6, Math.min(6, vyN * 4.5));
+  camTY = Math.max(-14, Math.min(20, (p.landT > 0 ? p.landT / 0.18 * 12 : 0) + (p.onGround ? 0 : vyN * -8)));
+  camX += (camTX - camX) * 0.18;
+  camY += (camTY - camY) * 0.16;
+
   // ------- gait phase (locked to travelled distance) -------
   const stride = p.anim;
   const ph = (stride % 1) * Math.PI * 2;
@@ -2683,49 +2712,50 @@ function drawPlayer(pal) {
     lean = Math.min(p.deadT * 3.0, 1.35);
     armA = -1.2; armB = -1.5;
     legA = 0.5; legB = -0.4;
+    sx = 1.06; sy = 0.94;
   } else if (duck) {
     crouch = 1;
     const w = Math.sin(bgT * 6) * 0.06;
     legA = 0.55 + w; legB = -0.55 + w;
     armA = 0.9; armB = -0.6;
+    sx = 1.09; sy = 0.86;
+    lean = 0.09;
   } else if (airDuck) {
-    lean = -0.22; tuck = 1;
+    lean = -0.28; tuck = 1;
     legA = 0.5; legB = -0.3; armA = -1.5; armB = -1.0;
+    sx = 0.93; sy = 1.09;
   } else if (!p.onGround) {
     // rise vs fall: arms/legs tuck on the way up, extend on the way down
     const up = p.vy < 0;
-    lean = Math.max(-1, Math.min(1, p.vy / 900)) * 0.12;
-    const t = Math.min(1, Math.abs(p.vy) / 1000);
-    if (up) { legA = 0.7; legB = -0.5; armA = -0.9; armB = -1.4; }
-    else    { legA = -0.35; legB = 0.45; armA = 0.5; armB = 0.9; }
-    sy = 1 + 0.07 * t; sx = 1 - 0.045 * t;
+    const v = p.vy / 900;
+    lean = Math.max(-0.36, Math.min(0.36, v)) * 0.18;
+    const t = Math.min(1, Math.abs(p.vy) / 1100);
+    if (up) { legA = 0.7; legB = -0.5; armA = -0.9; armB = -1.4; sx = 0.91; sy = 1.15 - t * 0.04; }
+    else    { legA = -0.35; legB = 0.45; armA = 0.5; armB = 0.9; sx = 0.95; sy = 1.10 - t * 0.07; }
   } else {
     // ---- run cycle ----
-    // A run is not two mirrored pendulums: the legs are a quarter-cycle out of
-    // phase in their VERTICAL travel, so one leg is planted while the other is
-    // swinging through (that's what stops the scissor/jumping-jack look).
-    const s1 = Math.sin(ph);            // right leg fore/aft
-    const s2 = Math.sin(ph + Math.PI);  // left leg fore/aft (opposite)
+    const s1 = Math.sin(ph);
+    const s2 = Math.sin(ph + Math.PI);
 
     legA = s1 * CH.legSwing;
     legB = s2 * CH.legSwing;
 
-    // swing-through: a leg shortens (knee bend) as it travels forward past the
-    // body, peaking a quarter cycle after it passes under the hip
     legLiftA = Math.max(0, -Math.cos(ph)) * 0.55;
     legLiftB = Math.max(0, -Math.cos(ph + Math.PI)) * 0.55;
 
-    // arms counter-swing, lagging the legs slightly, with a pumping elbow bend
     const lag = ph - 0.6;
     armA = Math.sin(lag + Math.PI) * 0.72;
     armB = Math.sin(lag) * 0.72;
 
-    // vertical bob: one rise per step, lowest when a foot plants
-    bobY = -Math.abs(Math.sin(ph)) * 2.8;
-    lean = -0.07 - Math.sin(ph * 2) * 0.02;
+    bobY = -Math.abs(Math.sin(ph)) * 3.0;
+    lean = -0.09 - Math.sin(ph * 2) * 0.035;
     if (p.landT > 0) {
-      const k = p.landT / 0.14;
-      sy = 1 - 0.15 * k; sx = 1 + 0.10 * k;
+      const k = Math.min(1, p.landT / 0.18);
+      const ease = k < 1 ? (1 - Math.pow(1 - k, 3)) : 1;
+      sy = 1 - (0.20 * ease) * (1 - ease * 0.35);
+      sx = 1 + (0.17 * ease) * (1 - ease * 0.35);
+      lean += 0.07 * (1 - ease);
+      bobY -= 1.9 * (1 - ease);
     }
   }
   // crouch shortens the body
@@ -2756,12 +2786,12 @@ function drawPlayer(pal) {
                     : (Math.floor(stride) % 2 === 0 ? "p_run1" : "p_run2");
 
   ctx.save();
-  ctx.shadowColor = pal.neon; ctx.shadowBlur = 16;
+  ctx.shadowColor = pal.neon; ctx.shadowBlur = 18;
   window.__pose = { legA, legB, armA, armB, lean, bobY, crouch, ph, legLiftA, legLiftB, hipY, legH };
 
   // feet-origin transform: y=0 is the ground line, everything is built upward
-  ctx.translate(p.x, p.y + bobY);
-  ctx.rotate(lean);
+  ctx.translate(p.x + camX, p.y + bobY + camY);
+  ctx.rotate(lean * 0.8 + camX * 0.0012);
   ctx.scale(sx, sy);
 
   // ---- неоновая модель героя (game/hero.js) ----
@@ -2788,6 +2818,19 @@ function drawPlayer(pal) {
   }
 
   const shoY = hipY - bodyH * 0.92;       // shoulder line above the hip
+
+  // ---- shadow under hero ----
+  if (!p.dead) {
+    ctx.save();
+    const shScale = 1 - (crouchK * 0.38) - (duck ? 0 : Math.max(0, Math.abs(p.vy) / 2000) * 0.08);
+    const shAlpha = (0.16 + Math.abs(p.vy) * 0.00006) * (1 - crouchK * 0.6);
+    ctx.globalAlpha = Math.max(0.06, Math.min(0.20, shAlpha));
+    ctx.fillStyle = pal.neon;
+    ctx.beginPath();
+    ctx.ellipse(0, 4, 16 * shScale * sx, 4.0 * shScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // ---- back arm (behind the torso) ----
   drawLimbW("l_arm", -3, shoY + bodyH * 0.24, armB, CH.armW, armH, 0.5);
