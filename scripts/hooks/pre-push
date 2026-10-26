@@ -1,0 +1,37 @@
+#!/bin/bash
+# pre-push hook for neon-run (Godot 2.x)
+# Install: cp scripts/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# Validates the web build and the Godot project before push.
+
+set -e
+
+echo "🔍 neon-run: Pre-push validation..."
+
+# Required files: Godot web build in the repo root + Godot project
+for f in index.html index.wasm index.pck godot/project.godot godot/export_presets.cfg; do
+  if [[ ! -f "$f" ]]; then
+    echo "❌ Missing required file: $f"
+    exit 1
+  fi
+done
+
+# Godot scripts
+for f in godot/scripts/game.gd godot/scripts/hero.gd godot/scripts/pen.gd; do
+  if [[ ! -f "$f" ]]; then
+    echo "❌ Missing Godot script: $f"
+    exit 1
+  fi
+done
+
+# Web build must be in sync with the post-export patcher
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 scripts/patch-web.py --check; then
+    echo "❌ Web build is out of sync. Run: python3 scripts/patch-web.py"
+    exit 1
+  fi
+else
+  echo "⚠️  python3 not found — web build check skipped"
+fi
+
+echo "✅ neon-run: All checks passed"
+exit 0

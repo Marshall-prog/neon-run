@@ -22,7 +22,7 @@
 ## Android
 
 APK — в [Releases](https://github.com/Marshall-prog/neon-run/releases).
-Версия 2.0.0 подписана новым ключом: перед установкой удалите версию 1.x,
+Версии 2.x подписаны новым ключом: перед установкой удалите версию 1.x,
 рекорды и настройки из неё не переносятся.
 
 ## Устройство репозитория
@@ -36,6 +36,13 @@ godot/                     — исходники Godot 4.7.2 (сцены, ск�
 
 Движок — Godot 4.7.2 (GL Compatibility), вся графика рисуется кодом: ни одного
 спрайта. Сборка Web и Android описана в [`godot/README.md`](godot/README.md).
+
+Pre-push проверка (web-сборка + Godot-проект):
+
+```bash
+cp scripts/hooks/pre-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+```
 
 Версия 1.x была на Canvas 2D; её код остался в истории git (до коммита `83a5f1e`).
 
