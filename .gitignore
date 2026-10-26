@@ -14,3 +14,6 @@ android/
 tools/
 assets/kenney_*/
 assets/*.zip
+
+# локальные заметки (не публикуются)
+*.local.md

@@ -51,26 +51,33 @@ godot --path godot --rendering-driver opengl3
 ```bash
 cd godot
 godot --headless --path . --export-release "Web" web/index.html
+python3 ../scripts/patch-web.py
 ```
 
+Экспорт генерирует `web/index.html` заново и сбрасывает часть настроек пулов,
+поэтому сразу после него нужен `scripts/patch-web.py`: он возвращает
+`GODOT_CONFIG` (`emscriptenPoolSize`, `godotPoolSize`, `fileSizes` по фактическим
+размерам файлов) и копирует артефакты `web/` в корень репозитория. Скрипт
+идемпотентен, умеет `--check`.
+
 Сборка однопоточная (`thread_support=false`) — COOP/COEP-заголовки не нужны.
-Результат: `godot/web/` (~49 МБ: `index.wasm` 39.5 МБ + `index.pck` 10.8 МБ с музыкой).
+Результат: `godot/web/` — 50.6 МБ на диске (`index.wasm` 39.5 МБ + `index.pck`
+10.8 МБ с музыкой), по сети с gzip около 20.7 МБ.
 
 ### Android APK
 
 ```bash
 cd godot
-set -a; . ~/.config/neon-run/keystore.env; set +a
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=~/.config/neon-run/neon-run-release.jks
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/path/to/neon-run-release.jks
 export GODOT_ANDROID_KEYSTORE_RELEASE_USER=neonrun
-export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$KEYSTORE_PASS"
-export JAVA_HOME=/home/marshall/opt/jdk17
+export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=...   # из вашего хранилища секретов
+export JAVA_HOME=/path/to/jdk17
 godot --headless --path . --export-release "Android" build/android/neon-run-2.0.0.apk
 ```
 
-Keystore **не** в репозитории: `~/.config/neon-run/neon-run-release.jks` (PKCS12, RSA 4096,
-30 лет). Пароль — `~/.config/neon-run/keystore.env` (chmod 600); шифрованный бэкап —
-`/mnt/d/Maks/Backups/neon-run-release-20261026.tar.gz.enc`.
+Release-keystore в репозиторий не входит: путь задаётся через
+`GODOT_ANDROID_KEYSTORE_RELEASE_PATH`, пароль — через
+`GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD`. Подпись RSA 4096, срок 30 лет.
 
 ## Отладка и визуальная сверка
 
