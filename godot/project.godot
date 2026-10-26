@@ -1,0 +1,47 @@
+; Engine configuration file.
+; NEON RUN — Godot port of the Canvas2D original (v2.0.0).
+
+config_version=5
+
+[application]
+
+config/name="NEON RUN"
+config/version="2.0.0"
+config/description="Neon runner: endless 2D runner."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(0.0196078, 0.0235294, 0.0588235, 1)
+config/icon="res://icon.svg"
+
+[autoload]
+
+Store="*res://scripts/store.gd"
+Sfx="*res://scripts/sfx.gd"
+Music="*res://scripts/music.gd"
+
+[display]
+
+window/size/viewport_width=480
+window/size/viewport_height=800
+window/size/window_width_override=480
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+window/handheld/orientation=1
+window/energy_saving/keep_screen_on=true
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.0196078, 0.0235294, 0.0588235, 1)
+
+[debug]
+
+gdscript/warnings/inference_on_variant=1
