@@ -9,8 +9,9 @@ Source corpus: github.com/SoundSafari/CC0-1.0-Music (a mirror of CC0 music from
 chosic.com, freepd.com and other public-domain sources).
 
 Every track is instrumental (no vocals). Each one was trimmed to a seamless
-~90 s loop, loudness-matched to the same RMS and re-encoded to a compact Opus
-file (~32 kbps, 48 kHz stereo) specifically for this game.
+~90 s loop and loudness-matched to the same RMS. For the Godot build (2.x) they
+were re-encoded as Vorbis OGG (~76-90 kbps, 44.1 kHz stereo); the earlier Canvas
+build (1.x) shipped the same tracks as Opus (~32 kbps).
 
 Level 1  Неоновый горизонт    lvl01.opus   Komiku — "Action Introduction" (The Binge Watchers : Score 1)
 Level 2  Закатный город       lvl02.opus   Bryan Teoh — "Downtown Boogie" (FreePD Music)

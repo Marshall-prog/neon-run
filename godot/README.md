@@ -3,8 +3,8 @@
 Игра переписана с Canvas 2D на **Godot 4.7.2** (GL Compatibility). Отрисовка осталась
 процедурной через `_draw()`, внешний вид и физика сверены с оригиналом 1:1.
 
-Старая веб-версия (`/index.html`, `/hero.js`, `/assets/`) лежит в корне репозитория и не
-тронута — это референс до «флипа» релиза.
+В корне репозитория лежит **готовая web-сборка** — её отдаёт GitHub Pages. Исходники — этот
+каталог. Canvas-версия 1.x из корня удалена 26.10.2026, она осталась в истории git (до `83a5f1e`).
 
 ## Структура
 
@@ -22,7 +22,7 @@ godot/
     store.gd             — рекорды/медали/настройки (user://)
     sfx.gd               — SFX генерируются в рантайме (AudioStreamWAV)
     music.gd             — 10 треков .ogg, по одному на уровень
-  assets/music/          — ogg + CREDITS.md
+  assets/music/          — ogg + CREDITS.txt
   assets/fonts/          — DejaVu Sans / Bold / Mono (кириллица)
   web/                   — готовая web-сборка (коммитится для GitHub Pages)
   export_presets.cfg     — пресеты Web и Android (без секретов)

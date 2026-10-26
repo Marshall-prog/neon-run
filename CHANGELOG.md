@@ -5,7 +5,8 @@
 ### Added
 - Godot 4.7.2 порт игры: процедурная отрисовка 1:1, 10 уровней, 15 препятствий,
   меню, пауза, таблица рекордов, медали, звук и музыка.
-- Web-сборка Godot в `godot/web/` (доступна по `/godot/` на GitHub Pages).
+- Web-сборка Godot: `godot/web/` — источник, собранные файлы лежат в корне репозитория;
+  GitHub Pages отдаёт корень — https://marshall-prog.github.io/neon-run/
 - Экспорт Android APK: `dev.marshall.neonrun`, versionCode 20000, arm64-v8a.
 
 ### Changed
