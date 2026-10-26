@@ -214,6 +214,15 @@ const engine = new Engine(GODOT_CONFIG);
 		}, displayFailureNotice);
 	}
 }());
+
+// Service worker: кэш игры после первого визита + офлайн-режим.
+if ('serviceWorker' in navigator) {
+	window.addEventListener('load', () => {
+		navigator.serviceWorker.register('index.service.worker.js').catch((err) => {
+			console.warn('Service worker registration failed:', err);
+		});
+	});
+}
 		</script>
 	</body>
 </html>
