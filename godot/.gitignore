@@ -1,0 +1,7 @@
+# Godot 4 editor/import cache
+.godot/
+# Export artifacts
+build/
+# OS noise
+.DS_Store
+Thumbs.db
