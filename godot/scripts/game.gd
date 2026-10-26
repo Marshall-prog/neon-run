@@ -84,6 +84,7 @@ var _frames := 0
 var _auto := ""
 var _turbo := 0
 var _log_t := 0.0
+var _js_hide_cb = null
 
 
 func _ready() -> void:
@@ -99,7 +100,29 @@ func _ready() -> void:
 	reset()
 	_parse_args()
 	Music.on = Store.music
+	_setup_web_pause()
 	_apply_auto()
+
+
+## Web не присылает уведомления о фокусе окна, поэтому подписываемся на
+## visibilitychange/blur браузера: свернул вкладку — игра встаёт на паузу.
+func _setup_web_pause() -> void:
+	if not OS.has_feature("web"):
+		return
+	_js_hide_cb = JavaScriptBridge.create_callback(_on_web_hide)
+	JavaScriptBridge.eval("""
+		if (!window.__neonHideHooked) {
+			window.__neonHideHooked = true;
+			var fire = function () { if (window.__neonHide) window.__neonHide(); };
+			document.addEventListener('visibilitychange', function () { if (document.hidden) fire(); });
+			window.addEventListener('blur', fire);
+		}
+	""", true)
+	JavaScriptBridge.get_interface("window").__neonHide = _js_hide_cb
+
+
+func _on_web_hide(_args: Array) -> void:
+	pause_game(true)
 
 
 var _level_arg := -1
@@ -319,16 +342,19 @@ func to_menu() -> void:
 	Music.stop()
 
 
-func pause_game() -> void:
+func pause_game(silent := false) -> void:
 	if state == St.PLAY:
 		state = St.PAUSE
-		Sfx.play("ui")
+		menu_page = "pause"
+		if not silent:
+			Sfx.play("ui")
 		Music.stop()
 
 
 func resume_game() -> void:
 	if state == St.PAUSE:
 		state = St.PLAY
+		_acc = 0.0
 		Sfx.play("ui")
 		Music.set_track(level_idx())
 
@@ -1449,5 +1475,9 @@ func _maybe_screenshot() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and state == St.PLAY:
-		pause_game()
+	# Автопауза: web/десктоп приходят оконным событием (window.blur),
+	# мобильные платформы — событиями жизненного цикла приложения.
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT \
+			or what == NOTIFICATION_APPLICATION_FOCUS_OUT \
+			or what == NOTIFICATION_APPLICATION_PAUSED:
+		pause_game(true)
