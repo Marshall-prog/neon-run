@@ -211,7 +211,7 @@ static func clip_segment(p0: Vector2, p1: Vector2, poly: PackedVector2Array) -> 
 		var b := poly[(i + 1) % n]
 		area += a.x * b.y - b.x * a.y
 	var sgn := 1.0 if area > 0.0 else -1.0
-	var pts := [p0, p1]
+	var pts: Array[Vector2] = [p0, p1]
 	for i in n:
 		if pts.size() < 2:
 			return []
