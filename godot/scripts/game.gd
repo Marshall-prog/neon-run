@@ -935,8 +935,10 @@ func on_key(k: InputEventKey) -> void:
 func menu_buttons() -> Array:
 	var rows: Array = []
 	if state == St.DEAD:
-		rows.append([["restart", "ЕЩЁ РАЗ", Pal.BTN_W]])
-		rows.append([["menu", "В ГЛАВНОЕ МЕНЮ", Pal.BTN_W]])
+		var bw := minf(Pal.BTN_W + 40.0, W - 32.0)
+		var bh := Pal.BTN_H + 14.0
+		rows.append([["restart", "ЕЩЁ РАЗ", bw, bh]])
+		rows.append([["menu", "В ГЛАВНОЕ МЕНЮ", bw, bh]])
 	elif menu_page == "pause":
 		rows.append([["resume", "ПРОДОЛЖИТЬ", Pal.BTN_W]])
 		rows.append([["sfx", "ЗВУК: ВЫКЛ" if Sfx.muted else "ЗВУК: ВКЛ", Pal.BTN_W * 0.5 - 6.0],
@@ -953,9 +955,18 @@ func menu_buttons() -> Array:
 		rows.append([["back", "НАЗАД", Pal.BTN_W]])
 
 	var list: Array = []
-	var total_h: float = rows.size() * Pal.BTN_H + (rows.size() - 1) * Pal.BTN_GAP
+	var base_h := Pal.BTN_H
+	if state == St.DEAD:
+		base_h = Pal.BTN_H + 14.0
+	var total_h: float = 0.0
+	for row in rows:
+		var rh := base_h
+		if row.size() > 0 and row[0].size() > 3:
+			rh = float(row[0][3])
+		total_h += rh
+	total_h += (rows.size() - 1) * Pal.BTN_GAP
 	var info_page := menu_page == "howto" or menu_page == "board"
-	var area_top := (H - 40.0 - Pal.BTN_H) if info_page else Pal.TITLE_BOTTOM
+	var area_top := (H - 40.0 - base_h) if info_page else Pal.TITLE_BOTTOM
 	var area_bottom := H - 40.0
 	var y := area_top if info_page else area_top + maxf(0.0, (area_bottom - area_top - total_h) * 0.5)
 	for row in rows:
@@ -964,10 +975,13 @@ func menu_buttons() -> Array:
 			row_w += float(r[2])
 		row_w += (row.size() - 1) * Pal.BTN_GAP
 		var x := W * 0.5 - row_w * 0.5
+		var rh := base_h
+		if row.size() > 0 and row[0].size() > 3:
+			rh = float(row[0][3])
 		for r in row:
-			list.append({"id": r[0], "label": r[1], "x": x, "y": y, "w": float(r[2]), "h": Pal.BTN_H})
+			list.append({"id": r[0], "label": r[1], "x": x, "y": y, "w": float(r[2]), "h": rh})
 			x += float(r[2]) + Pal.BTN_GAP
-		y += Pal.BTN_H + Pal.BTN_GAP
+		y += rh + Pal.BTN_GAP
 	return list
 
 
@@ -979,6 +993,8 @@ func button_at(pos: Vector2) -> Dictionary:
 
 
 func run_menu_button(id: String) -> void:
+	if OS.has_feature("mobile") and id != "sfx" and id != "mus":
+		Input.vibrate_handheld(30)
 	match id:
 		"start":
 			start_game()
