@@ -384,6 +384,8 @@ func die() -> void:
 	shake = 14.0
 	hit_stop = 0.09
 	flash = 0.5
+	if OS.has_feature("mobile"):
+		Input.vibrate_handheld(200)
 	spawn_burst(player["x"], player["y"] - 30.0, 26)
 	Music.stop()
 	var m := int(floor(dist / PX_PER_M))
@@ -409,6 +411,8 @@ func die() -> void:
 				break
 		medal_flash_text = Pal.medal_name(got)
 		medal_flash = 2.5
+		if OS.has_feature("mobile"):
+			Input.vibrate_handheld(150)
 	if Store.first_run:
 		Store.first_run = false
 		Store.save()
@@ -657,6 +661,8 @@ func update(dt: float) -> void:
 				p["on_ground"] = false
 				p["jumps"] = 1
 				Sfx.play("jump")
+				if OS.has_feature("mobile"):
+					Input.vibrate_handheld(50)
 				spawn_puff(ob["x"] + float(d["w"]) * 0.5, ob["y"], 8)
 	obstacles = obstacles.filter(func(ob): return ob["x"] + float(ob["def"]["w"]) > -40.0)
 
