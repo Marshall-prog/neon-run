@@ -858,6 +858,11 @@ func on_press(pos: Vector2) -> void:
 	if state == St.PLAY and pos.x > W - 70.0 and pos.y < 80.0:
 		open_menu()
 		return
+	if state == St.DEAD:
+		var b := button_at(pos)
+		if not b.is_empty():
+			run_menu_button(b["id"])
+			return
 	if state == St.PLAY:
 		press_y = pos.y
 		pending_jump = true
@@ -906,6 +911,8 @@ func on_key(k: InputEventKey) -> void:
 				resume_game()
 			elif state == St.MENU and menu_page != "main":
 				menu_page = "main"
+			elif state == St.DEAD:
+				to_menu()
 		KEY_M:
 			if state == St.MENU:
 				Music.set_enabled(not Music.on)
@@ -921,7 +928,10 @@ func on_key(k: InputEventKey) -> void:
 
 func menu_buttons() -> Array:
 	var rows: Array = []
-	if menu_page == "pause":
+	if state == St.DEAD:
+		rows.append([["restart", "ЕЩЁ РАЗ", Pal.BTN_W]])
+		rows.append([["menu", "В ГЛАВНОЕ МЕНЮ", Pal.BTN_W]])
+	elif menu_page == "pause":
 		rows.append([["resume", "ПРОДОЛЖИТЬ", Pal.BTN_W]])
 		rows.append([["sfx", "ЗВУК: ВЫКЛ" if Sfx.muted else "ЗВУК: ВКЛ", Pal.BTN_W * 0.5 - 6.0],
 			["mus", "МУЗЫКА: ВКЛ" if Music.on else "МУЗЫКА: ВЫКЛ", Pal.BTN_W * 0.5 - 6.0]])
@@ -965,6 +975,8 @@ func button_at(pos: Vector2) -> Dictionary:
 func run_menu_button(id: String) -> void:
 	match id:
 		"start":
+			start_game()
+		"restart":
 			start_game()
 		"board":
 			menu_page = "board"
@@ -1046,6 +1058,7 @@ func _draw() -> void:
 		draw_pause(p)
 	if state == St.DEAD:
 		draw_dead(p)
+		draw_buttons(p)
 
 
 func draw_ground(p: Dictionary) -> void:
@@ -1456,9 +1469,8 @@ func draw_dead(p: Dictionary) -> void:
 		pen.alpha = 1.0
 	if dead_at > 0.4:
 		pen.alpha = 0.6 + 0.4 * sin(bg_t * 4.0)
-		pen.text("ТАП — ЕЩЁ РАЗ", Vector2(W * 0.5, 668), 30, Color.WHITE, "center", true)
+		pen.text("ТАП/ENTER — ЕЩЁ РАЗ • ESC — В МЕНЮ", Vector2(W * 0.5, 728), 16, Color(1, 1, 1, 0.5), "center", true)
 		pen.alpha = 1.0
-		pen.text("ESC — в меню", Vector2(W * 0.5, 704), 17, Color(1, 1, 1, 0.5))
 
 
 # --------------------------------------------------------------- automation ---
